@@ -1,4 +1,4 @@
-#Imports
+#IMPORTS
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -7,62 +7,68 @@ import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader
 
-#Create neural net
-class NN(nn.Module):
-    def __init__(self,input_size,num_classes):
-        super(NN,self).__init__()
-        self.fc1 = nn.Linear(input_size, 500)
-        self.fc2 = nn.Linear(500,100)
-        self.fc3 = nn.Linear(100,num_classes)
-        self.dropout = nn.Dropout(p=0.5) 
+#Create neural network
+class CNN(nn.Module):
+    def __init__(self,input_channel=1,num_classes=10):
+        super(CNN,self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=input_channel,out_channels=8,kernel_size=3,stride=1,padding=1)
+        self.pool = nn.MaxPool2d(kernel_size=2,stride=2)
+        self.conv2 = nn.Conv2d(in_channels=8,out_channels=16,kernel_size=3,stride=1,padding=1)
+        self.fc1 = nn.Linear(16*7*7, num_classes)
 
-    def forward(self ,x):
-        x = F.relu(self.fc1(x))
-        x = self.dropout(x)
-        x = F.relu(self.fc2(x))
-        x= self.fc3(x)
+    def forward(self, x):
+        x=F.relu(self.conv1(x))
+        x = self.pool(x)
+        x = F.relu(self.conv2(x))
+        x = self.pool(x)
+        x = x.reshape(x.shape[0], -1)
+        x = self.fc1(x)
+
         return x
-
+    
 #Device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-#Hypermeters 
-input_size = 784
-num_classes = 10
+#Hyperparameters
 lr = 0.001
 batch_size  = 64
 num_epochs = 5
+input_channel = 1
+num_classes = 10
 
-#Load Data
+#dataste
 train_dataset = datasets.MNIST(root='dataset/' ,train=True, transform=transforms.ToTensor(),download=True)
 train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size , shuffle = True)
 test_dataset = datasets.MNIST(root='dataset/' ,train=False, transform=transforms.ToTensor(),download=True)
 test_loader = DataLoader(dataset = test_dataset, batch_size = batch_size , shuffle = True)
 
-# Initialize
-model = NN(input_size=input_size,num_classes=num_classes).to(device)
-  
-#Loss & Optim
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(params=model.parameters(),lr=lr)
+#Initialization
+model = CNN(input_channel=input_channel,num_classes=num_classes).to(device)
 
-# Train Network
+# Test
+# x = torch.randn(64,1,28,28)
+# print(model(x).shape)
+# exit()
+
+#Loss
+criteria = nn.CrossEntropyLoss()
+optimizer = optim.Adam(params=model.parameters(), lr = lr)
+
+#model
 for epoch in range(num_epochs):
     for idx ,(image, target) in enumerate(train_loader):
         image = image.to(device)
         target = target.to(device)
 
-        image = image.reshape(image.shape[0],-1)
-
         output = model(image)
-        loss = criterion(output,target)
+        loss = criteria(output, target)
 
         optimizer.zero_grad()
         loss.backward()
 
         optimizer.step()
 
-
+#Accuracy
 def chech_accuracy(model,test_loader):
     num_correct = 0
     num_samples = 0
@@ -71,7 +77,6 @@ def chech_accuracy(model,test_loader):
         for x,y in test_loader:
             x = x.to(device)
             y = y.to(device)
-            x = x.reshape(x.shape[0],-1)
 
             scores = model(x)
             _,pred = scores.max(1)
@@ -85,3 +90,7 @@ def chech_accuracy(model,test_loader):
 
 chech_accuracy(model,train_loader)
 chech_accuracy(model,test_loader)
+   
+
+
+
